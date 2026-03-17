@@ -443,6 +443,9 @@
     ;(function () {
       const MAX_QUESTIONS = 5
       const STORAGE_KEY = 'doOrNot_state'
+      const AI_API_KEY = ''
+      const AI_API_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
+      const AI_MODEL = 'qwen-turbo'
 
       const doTips = [
         '犹豫就会败北，果断才能胜利！',
@@ -599,6 +602,56 @@
         setTimeout(() => toastEl.classList.remove('show'), duration)
       }
 
+      async function askAI(question) {
+        const systemPrompt = `你是一个有趣的命运决策助手。用户会告诉你一件正在纠结要不要做的事，你需要帮他做出"做"或"不做"的决定，并给出一句幽默、有个性的理由。
+
+要求：
+1. 根据问题的实际内容，给出合理但带有趣味性的建议
+2. 理由要简短（15-30字），幽默风趣，可以毒舌、可以暖心、可以无厘头
+3. 严格按 JSON 格式返回，不要输出其他内容
+
+返回格式：{"doIt":true,"tip":"你的理由"}
+doIt 为 true 表示"做"，false 表示"不做"`
+
+        const res = await fetch(AI_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${AI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: AI_MODEL,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: question },
+            ],
+            temperature: 1.2,
+            max_tokens: 150,
+          }),
+        })
+
+        if (!res.ok) throw new Error(`API ${res.status}`)
+
+        const data = await res.json()
+        const content = data.choices?.[0]?.message?.content?.trim()
+        if (!content) throw new Error('empty response')
+
+        const jsonMatch = content.match(/\{[\s\S]*\}/)
+        if (!jsonMatch) throw new Error('no JSON found')
+
+        const parsed = JSON.parse(jsonMatch[0])
+        if (typeof parsed.doIt !== 'boolean' || typeof parsed.tip !== 'string') {
+          throw new Error('invalid format')
+        }
+        return parsed
+      }
+
+      function getFallbackResult(question) {
+        const doIt = Math.random() > 0.5
+        const tip = doIt ? randomPick(doTips) : randomPick(dontTips)
+        return { doIt, tip }
+      }
+
       function saveState() {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify({ current, results }))
@@ -637,7 +690,7 @@
         }
       }
 
-      function handleAsk() {
+      async function handleAsk() {
         const question = questionInput.value.trim()
         if (!question) { questionInput.focus(); return }
 
@@ -655,43 +708,50 @@
           thinkingEl.querySelector('.ball i').className = icons[iconIdx]
         }, 300)
 
-        const delay = 1200 + Math.random() * 800
+        let aiResult
+        const minDelay = new Promise(r => setTimeout(r, 1200))
 
-        setTimeout(() => {
-          clearInterval(iconTimer)
-          thinkingEl.classList.remove('show')
+        try {
+          const [result] = await Promise.all([askAI(question), minDelay])
+          aiResult = result
+        } catch (err) {
+          console.warn('AI 调用失败，使用随机结果:', err)
+          await minDelay
+          aiResult = getFallbackResult(question)
+        }
 
-          const doIt = Math.random() > 0.5
-          const tip = doIt ? randomPick(doTips) : randomPick(dontTips)
-          const text = doIt ? '做！' : '不做！'
+        clearInterval(iconTimer)
+        thinkingEl.classList.remove('show')
 
-          results.push({ question, doIt, text, tip })
-          current++
-          saveState()
+        const { doIt, tip } = aiResult
+        const text = doIt ? '做！' : '不做！'
 
-          vibrate(doIt ? [50, 30, 50] : [100])
+        results.push({ question, doIt, text, tip })
+        current++
+        saveState()
 
-          const iconEl = $('resultIcon')
-          iconEl.className = 'result-icon ' + (doIt ? 'do-it' : 'dont-do')
-          $('resultIconI').className = doIt ? 'ri-check-line' : 'ri-close-line'
+        vibrate(doIt ? [50, 30, 50] : [100])
 
-          $('answerText').textContent = text
-          $('answerText').className = 'answer ' + (doIt ? 'do-it' : 'dont-do')
+        const iconEl = $('resultIcon')
+        iconEl.className = 'result-icon ' + (doIt ? 'do-it' : 'dont-do')
+        $('resultIconI').className = doIt ? 'ri-check-line' : 'ri-close-line'
 
-          $('tipContent').textContent = tip
-          $('questionEcho').textContent = `"${question}"`
-          $('resultDisplay').classList.add('show')
+        $('answerText').textContent = text
+        $('answerText').className = 'answer ' + (doIt ? 'do-it' : 'dont-do')
 
-          if (current < MAX_QUESTIONS) {
-            $('resultActions').classList.add('show')
-            nextBtn.innerHTML = '下一个问题 <i class="ri-arrow-right-line"></i>'
-            nextBtn.onclick = handleNext
-          } else {
-            $('resultActions').classList.add('show')
-            nextBtn.innerHTML = '查看汇总 <i class="ri-file-list-3-line"></i>'
-            nextBtn.onclick = showSummary
-          }
-        }, delay)
+        $('tipContent').textContent = tip
+        $('questionEcho').textContent = `"${question}"`
+        $('resultDisplay').classList.add('show')
+
+        if (current < MAX_QUESTIONS) {
+          $('resultActions').classList.add('show')
+          nextBtn.innerHTML = '下一个问题 <i class="ri-arrow-right-line"></i>'
+          nextBtn.onclick = handleNext
+        } else {
+          $('resultActions').classList.add('show')
+          nextBtn.innerHTML = '查看汇总 <i class="ri-file-list-3-line"></i>'
+          nextBtn.onclick = showSummary
+        }
       }
 
       function handleNext() {
@@ -824,11 +884,11 @@
         questionInput.focus()
       }
 
-      // 统一事件绑定
+      // 统一事件绑定（nextBtn 通过 onclick 动态切换 handleNext / showSummary，不在这里绑定）
       askBtn.addEventListener('click', handleAsk)
-      nextBtn.addEventListener('click', handleNext)
       restartBtn.addEventListener('click', handleRestart)
       shareBtn.addEventListener('click', handleShare)
+      nextBtn.onclick = handleNext
 
       questionInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !askBtn.disabled) handleAsk()
