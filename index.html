@@ -2,7 +2,8 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#fef6f0">
   <title>做还是不做？</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.min.css">
   <style>
@@ -30,10 +31,11 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 40px 16px 60px;
+      justify-content: center;
+      padding: 40px 16px calc(60px + env(safe-area-inset-bottom, 0px));
     }
 
-    .container { width: 100%; max-width: 420px; }
+    .container { width: 100%; max-width: 420px; margin: 0 auto; }
 
     /* ---- Header ---- */
     .header { text-align: center; margin-bottom: 32px; }
@@ -116,6 +118,20 @@
       box-shadow: 0 4px 14px rgba(160, 210, 240, 0.4);
     }
     .btn-restart:hover { box-shadow: 0 6px 20px rgba(160, 210, 240, 0.5); transform: translateY(-1px); }
+
+    .btn-share {
+      background: linear-gradient(135deg, #ffd93d, #ffb347);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(255, 217, 61, 0.4);
+      margin-left: 12px;
+    }
+    .btn-share:hover { box-shadow: 0 6px 20px rgba(255, 217, 61, 0.5); transform: translateY(-1px); }
+
+    .btn-sm {
+      padding: 10px 20px;
+      font-size: 14px;
+      border-radius: 12px;
+    }
 
     /* ---- Thinking ---- */
     .thinking { display: none; text-align: center; padding: 24px 0; }
@@ -253,6 +269,18 @@
     .summary .summary-header h2 { font-size: 22px; font-weight: 700; }
     .summary .summary-header p { font-size: 14px; color: var(--text-light); margin-top: 4px; }
 
+    .summary .summary-verdict {
+      text-align: center;
+      font-size: 15px;
+      color: var(--text);
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #fff9e6, #fff3cc);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+    .summary .summary-verdict i { color: #ffb347; margin-right: 4px; }
+
     .summary .summary-stats {
       display: flex; justify-content: center; gap: 24px;
       margin: 16px 0 20px;
@@ -263,7 +291,31 @@
     .summary .stat-num.red { color: var(--red-deep); }
     .summary .stat-label { font-size: 12px; color: var(--text-light); margin-top: 2px; }
 
-    .summary .restart-wrap { text-align: center; margin-top: 24px; }
+    .summary .restart-wrap {
+      text-align: center;
+      margin-top: 24px;
+      display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;
+    }
+
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 14px;
+      z-index: 999;
+      opacity: 0;
+      transition: all 0.3s;
+      pointer-events: none;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
 
     .hidden { display: none !important; }
 
@@ -294,6 +346,14 @@
       0%, 100% { transform: scale(1.2); }
       50% { transform: scale(1); }
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -320,19 +380,19 @@
     <div class="card" id="mainCard">
       <div class="input-area" id="inputArea">
         <input type="text" id="questionInput" placeholder="输入你纠结的事..." maxlength="50" autocomplete="off">
-        <button class="btn btn-primary" id="askBtn" onclick="handleAsk()">
+        <button class="btn btn-primary" id="askBtn">
           <i class="ri-sparkling-2-fill"></i> 告诉我！
         </button>
       </div>
 
-      <div class="thinking" id="thinking">
+      <div class="thinking" id="thinking" aria-live="polite">
         <div class="ball">
           <i class="ri-magic-fill"></i>
         </div>
         <p class="text">命运正在思考中...</p>
       </div>
 
-      <div class="result-display" id="resultDisplay">
+      <div class="result-display" id="resultDisplay" aria-live="assertive">
         <div class="result-icon" id="resultIcon">
           <i id="resultIconI"></i>
         </div>
@@ -345,7 +405,7 @@
       </div>
 
       <div class="result-actions" id="resultActions">
-        <button class="btn btn-primary" id="nextBtn" onclick="handleNext()">
+        <button class="btn btn-primary" id="nextBtn">
           下一个问题 <i class="ri-arrow-right-line"></i>
         </button>
       </div>
@@ -360,11 +420,15 @@
           <h2>五个问题问完啦！</h2>
           <p>命运已经替你做好了决定～</p>
         </div>
+        <div class="summary-verdict" id="summaryVerdict"></div>
         <div class="summary-stats" id="summaryStats"></div>
         <div id="summaryList"></div>
         <div class="restart-wrap">
-          <button class="btn btn-restart" onclick="handleRestart()">
+          <button class="btn btn-restart" id="restartBtn">
             <i class="ri-refresh-line"></i> 再来一轮
+          </button>
+          <button class="btn btn-share btn-sm" id="shareBtn">
+            <i class="ri-share-forward-fill"></i> 分享结果
           </button>
         </div>
       </div>
@@ -373,267 +437,412 @@
     <div class="history" id="history"></div>
   </div>
 
+  <div class="toast" id="toast"></div>
+
   <script>
-    const MAX_QUESTIONS = 5
+    ;(function () {
+      const MAX_QUESTIONS = 5
+      const STORAGE_KEY = 'doOrNot_state'
 
-    const doTips = [
-      '犹豫就会败北，果断才能胜利！',
-      '人生苦短，先做了再说！',
-      '种一棵树最好的时间是十年前，其次是现在',
-      '反正你也拦不住自己，不如大胆去做',
-      '命运说了：冲就完事了！',
-      '做吧，未来的你会感谢现在的决定',
-      '有些事不做，才会后悔一辈子',
-      '别想了，宇宙都在推你往前走',
-      '心动不如行动，行动不如现在',
-      '这件事值得你 all in',
-      '你已经足够优秀，放手去做吧',
-      '机会稍纵即逝，现在就出发',
-      '纠结的时候，就选让你心跳加速的那个',
-      '勇敢的人先享受世界',
-      '做了可能后悔，不做一定后悔',
-      '你的人生你做主，冲鸭！',
-      '想都是问题，做才是答案',
-      '成功的人都有一个共同点：先干了再说',
-      '万事开头难，但不开头更难',
-      '别等万事俱备了，东风自己会来的',
-      '只管去做，剩下的交给时间',
-      'Just do it! 耐克说的，不是我说的',
-      '你看起来就是能搞定这件事的人',
-      '据可靠消息：这件事做了血赚',
-      '你的好运正在派送中，请签收',
-      '今天的星象非常适合搞事情',
-      '此时不做，更待何时？',
-      '你身上有一股不服输的劲儿，用上它',
-      '做完这件事，你就是全场最靓的仔',
-      '命运女神正在朝你微笑',
-      '你的潜力比你想象的大得多',
-      '三二一，冲！后面的事后面再说',
-      '早做早超生...啊不，早做早轻松',
-      '选择恐惧症的解药：做就对了',
-      '你问我做不做？我觉得你心里早有答案了',
-      '今天是个黄道吉日，大胆去做吧',
-      '经过严密计算（其实是随机的），做！',
-      '有梦想就要去追，万一实现了呢',
-      '别让"如果当初"成为你的口头禅',
-      '世界正在奖励那些敢于行动的人',
-    ]
+      const doTips = [
+        '犹豫就会败北，果断才能胜利！',
+        '人生苦短，先做了再说！',
+        '种一棵树最好的时间是十年前，其次是现在',
+        '反正你也拦不住自己，不如大胆去做',
+        '命运说了：冲就完事了！',
+        '做吧，未来的你会感谢现在的决定',
+        '有些事不做，才会后悔一辈子',
+        '别想了，宇宙都在推你往前走',
+        '心动不如行动，行动不如现在',
+        '这件事值得你 all in',
+        '你已经足够优秀，放手去做吧',
+        '机会稍纵即逝，现在就出发',
+        '纠结的时候，就选让你心跳加速的那个',
+        '勇敢的人先享受世界',
+        '做了可能后悔，不做一定后悔',
+        '你的人生你做主，冲鸭！',
+        '想都是问题，做才是答案',
+        '成功的人都有一个共同点：先干了再说',
+        '万事开头难，但不开头更难',
+        '别等万事俱备了，东风自己会来的',
+        '只管去做，剩下的交给时间',
+        'Just do it! 耐克说的，不是我说的',
+        '你看起来就是能搞定这件事的人',
+        '据可靠消息：这件事做了血赚',
+        '你的好运正在派送中，请签收',
+        '今天的星象非常适合搞事情',
+        '此时不做，更待何时？',
+        '你身上有一股不服输的劲儿，用上它',
+        '做完这件事，你就是全场最靓的仔',
+        '命运女神正在朝你微笑',
+        '你的潜力比你想象的大得多',
+        '三二一，冲！后面的事后面再说',
+        '早做早超生...啊不，早做早轻松',
+        '选择恐惧症的解药：做就对了',
+        '你问我做不做？我觉得你心里早有答案了',
+        '今天是个黄道吉日，大胆去做吧',
+        '经过严密计算（其实是随机的），做！',
+        '有梦想就要去追，万一实现了呢',
+        '别让"如果当初"成为你的口头禅',
+        '世界正在奖励那些敢于行动的人',
+      ]
 
-    const dontTips = [
-      '有时候什么都不做，也是一种智慧',
-      '今天的你需要一点咸鱼精神',
-      '躺平也是一种人生态度',
-      '省下这个精力，吃顿好的补补',
-      '命运觉得你应该先歇歇',
-      '别勉强自己啦，明天再说也不迟',
-      '此事不宜操之过急，再等等看',
-      '退一步海阔天空，不做也挺好',
-      '今日不宜折腾，适合发呆',
-      '你的直觉告诉你不要，那就别要',
-      '有些事情，顺其自然就好',
-      '不做这件事，你可以用时间去做更开心的事',
-      '摆烂也是需要勇气的，你做到了',
-      '宇宙建议：这件事先放一放',
-      '据说聪明的人都知道什么时候该放手',
-      '你已经很努力了，今天可以偷个懒',
-      '不做也不会怎样，世界照常运转',
-      '你的身体在替你拒绝，尊重它',
-      '这个决定帮你省了一笔钱/精力/时间',
-      '命运觉得你更适合窝在沙发上吃零食',
-      '人生建议：能拖就拖，拖着拖着就不用做了',
-      '今天水逆，不宜冲动行事',
-      '你的懒癌晚期确诊了，安心休息吧',
-      '把精力留给更重要的事——比如追剧',
-      '条条大路通罗马，但今天不出发也行',
-      '宇宙能量检测：当前不适合行动',
-      '人间清醒就是知道什么不该做',
-      '恭喜你成功避开了一个大坑（也许）',
-      '选择不做，是成年人最大的自律',
-      '与其瞎折腾，不如先睡一觉',
-      '塔罗牌倒了，今天不宜操作此事',
-      '你的钱包在偷偷感谢这个决定',
-      '不是不做，是战略性延迟',
-      '别卷了，人生又不是只有这一件事',
-      '来都来了...但还是算了吧',
-      '这件事可以写进「不做清单」了',
-      '有一种幸福叫做：什么都不做',
-      '你的舒适区在向你招手',
-      '歇一歇吧，明天的你会更有判断力',
-      '据不可靠统计：不做的人更快乐（大概）',
-    ]
+      const dontTips = [
+        '有时候什么都不做，也是一种智慧',
+        '今天的你需要一点咸鱼精神',
+        '躺平也是一种人生态度',
+        '省下这个精力，吃顿好的补补',
+        '命运觉得你应该先歇歇',
+        '别勉强自己啦，明天再说也不迟',
+        '此事不宜操之过急，再等等看',
+        '退一步海阔天空，不做也挺好',
+        '今日不宜折腾，适合发呆',
+        '你的直觉告诉你不要，那就别要',
+        '有些事情，顺其自然就好',
+        '不做这件事，你可以用时间去做更开心的事',
+        '摆烂也是需要勇气的，你做到了',
+        '宇宙建议：这件事先放一放',
+        '据说聪明的人都知道什么时候该放手',
+        '你已经很努力了，今天可以偷个懒',
+        '不做也不会怎样，世界照常运转',
+        '你的身体在替你拒绝，尊重它',
+        '这个决定帮你省了一笔钱/精力/时间',
+        '命运觉得你更适合窝在沙发上吃零食',
+        '人生建议：能拖就拖，拖着拖着就不用做了',
+        '今天水逆，不宜冲动行事',
+        '你的懒癌晚期确诊了，安心休息吧',
+        '把精力留给更重要的事——比如追剧',
+        '条条大路通罗马，但今天不出发也行',
+        '宇宙能量检测：当前不适合行动',
+        '人间清醒就是知道什么不该做',
+        '恭喜你成功避开了一个大坑（也许）',
+        '选择不做，是成年人最大的自律',
+        '与其瞎折腾，不如先睡一觉',
+        '塔罗牌倒了，今天不宜操作此事',
+        '你的钱包在偷偷感谢这个决定',
+        '不是不做，是战略性延迟',
+        '别卷了，人生又不是只有这一件事',
+        '来都来了...但还是算了吧',
+        '这件事可以写进「不做清单」了',
+        '有一种幸福叫做：什么都不做',
+        '你的舒适区在向你招手',
+        '歇一歇吧，明天的你会更有判断力',
+        '据不可靠统计：不做的人更快乐（大概）',
+      ]
 
-    const thinkTexts = [
-      '命运正在思考中...',
-      '让我掐指算算...',
-      '水晶球正在旋转...',
-      '宇宙正在给出答案...',
-      '命运之轮转动中...',
-      '正在接收宇宙信号...',
-      '塔罗牌正在洗牌...',
-      '量子纠缠计算中...',
-      '正在翻阅命运之书...',
-      '星座能量汇聚中...',
-    ]
+      const thinkTexts = [
+        '命运正在思考中...',
+        '让我掐指算算...',
+        '水晶球正在旋转...',
+        '宇宙正在给出答案...',
+        '命运之轮转动中...',
+        '正在接收宇宙信号...',
+        '塔罗牌正在洗牌...',
+        '量子纠缠计算中...',
+        '正在翻阅命运之书...',
+        '星座能量汇聚中...',
+      ]
 
-    let current = 0
-    let results = []
-
-    const $ = (id) => document.getElementById(id)
-    const questionInput = $('questionInput')
-    const askBtn = $('askBtn')
-
-    questionInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !askBtn.disabled) handleAsk()
-    })
-
-    function randomPick(arr) {
-      return arr[Math.floor(Math.random() * arr.length)]
-    }
-
-    function updateProgress() {
-      $('progressText').textContent = `第 ${current + 1} / ${MAX_QUESTIONS} 个问题`
-      const dots = $('dots').children
-      for (let i = 0; i < dots.length; i++) {
-        dots[i].className = 'dot'
-        if (i < current) dots[i].classList.add('done')
-        if (i === current) dots[i].classList.add('active')
+      const summaryVerdicts = {
+        allDo: [
+          '命运之力全票通过——你就是行动派本派！',
+          '五连做！你是被命运选中的卷王！',
+          '今天的你，勇气值拉满！',
+        ],
+        allDont: [
+          '命运觉得你今天适合原地躺平，享受生活～',
+          '五连不做！恭喜获得"今日最佳咸鱼"称号！',
+          '宇宙在暗示你：今天是休息日。',
+        ],
+        moreDo: [
+          '整体偏行动派！命运觉得你今天元气满满～',
+          '做的比不做的多，看来你内心是个行动派嘛！',
+        ],
+        moreDont: [
+          '今天稍微佛系一点，也挺好的～',
+          '不做的居多，命运建议你今天以静制动。',
+        ],
+        balanced: [
+          '做与不做五五开，人生就是要保持平衡嘛～',
+          '一半做一半不做，命运觉得你很理性！',
+        ],
       }
-    }
 
-    function handleAsk() {
-      const question = questionInput.value.trim()
-      if (!question) { questionInput.focus(); return }
+      let current = 0
+      let results = []
 
-      askBtn.disabled = true
-      $('inputArea').classList.add('hidden')
+      const $ = (id) => document.getElementById(id)
+      const questionInput = $('questionInput')
+      const askBtn = $('askBtn')
+      const nextBtn = $('nextBtn')
+      const restartBtn = $('restartBtn')
+      const shareBtn = $('shareBtn')
+      const toastEl = $('toast')
 
-      const thinkingEl = $('thinking')
-      thinkingEl.classList.add('show')
-      thinkingEl.querySelector('.text').textContent = randomPick(thinkTexts)
+      function escapeHtml(str) {
+        const div = document.createElement('div')
+        div.textContent = str
+        return div.innerHTML
+      }
 
-      const icons = ['ri-magic-fill', 'ri-compass-3-fill', 'ri-eye-fill', 'ri-flashlight-fill', 'ri-star-smile-fill']
-      let iconIdx = 0
-      const iconTimer = setInterval(() => {
-        iconIdx = (iconIdx + 1) % icons.length
-        thinkingEl.querySelector('.ball i').className = icons[iconIdx]
-      }, 300)
+      function randomPick(arr) {
+        return arr[Math.floor(Math.random() * arr.length)]
+      }
 
-      const delay = 1200 + Math.random() * 800
+      function vibrate(pattern) {
+        if (navigator.vibrate) navigator.vibrate(pattern)
+      }
 
-      setTimeout(() => {
-        clearInterval(iconTimer)
-        thinkingEl.classList.remove('show')
+      function showToast(msg, duration = 2000) {
+        toastEl.textContent = msg
+        toastEl.classList.add('show')
+        setTimeout(() => toastEl.classList.remove('show'), duration)
+      }
 
-        const doIt = Math.random() > 0.5
-        const tip = doIt ? randomPick(doTips) : randomPick(dontTips)
-        const text = doIt ? '做！' : '不做！'
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ current, results }))
+        } catch { /* quota exceeded, ignore */ }
+      }
 
-        results.push({ question, doIt, text, tip })
-
-        const iconEl = $('resultIcon')
-        iconEl.className = 'result-icon ' + (doIt ? 'do-it' : 'dont-do')
-        $('resultIconI').className = doIt ? 'ri-check-line' : 'ri-close-line'
-
-        $('answerText').textContent = text
-        $('answerText').className = 'answer ' + (doIt ? 'do-it' : 'dont-do')
-
-        $('tipContent').textContent = tip
-        $('questionEcho').textContent = `"${question}"`
-        $('resultDisplay').classList.add('show')
-
-        if (current < MAX_QUESTIONS - 1) {
-          $('resultActions').classList.add('show')
-          $('nextBtn').innerHTML = '下一个问题 <i class="ri-arrow-right-line"></i>'
-          $('nextBtn').onclick = handleNext
-        } else {
-          $('resultActions').classList.add('show')
-          $('nextBtn').innerHTML = '查看汇总 <i class="ri-file-list-3-line"></i>'
-          $('nextBtn').onclick = showSummary
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY)
+          if (!raw) return false
+          const state = JSON.parse(raw)
+          if (!state.results?.length || state.current >= MAX_QUESTIONS) {
+            localStorage.removeItem(STORAGE_KEY)
+            return false
+          }
+          current = state.current
+          results = state.results
+          return true
+        } catch {
+          return false
         }
-
-        current++
-      }, delay)
-    }
-
-    function handleNext() {
-      $('resultDisplay').classList.remove('show')
-      $('resultActions').classList.remove('show')
-      addHistoryItem(results[results.length - 1])
-      questionInput.value = ''
-      askBtn.disabled = false
-      $('inputArea').classList.remove('hidden')
-      updateProgress()
-      questionInput.focus()
-    }
-
-    function buildHistoryHtml(item) {
-      return `
-        <div class="h-icon ${item.doIt ? 'do-it' : 'dont-do'}">
-          <i class="${item.doIt ? 'ri-check-line' : 'ri-close-line'}"></i>
-        </div>
-        <div class="h-body">
-          <span class="h-question">${item.question}</span>
-          <span class="h-tip">${item.tip}</span>
-        </div>
-        <span class="h-answer ${item.doIt ? 'do-it' : 'dont-do'}">${item.text}</span>
-      `
-    }
-
-    function addHistoryItem(item) {
-      const historyEl = $('history')
-      if (!historyEl.querySelector('.history-title')) {
-        historyEl.innerHTML = '<p class="history-title"><i class="ri-time-line"></i> 之前的问题</p>'
       }
-      const div = document.createElement('div')
-      div.className = 'history-item'
-      div.innerHTML = buildHistoryHtml(item)
-      historyEl.appendChild(div)
-    }
 
-    function showSummary() {
-      $('mainCard').classList.add('hidden')
-      $('progress').classList.add('hidden')
-      $('history').classList.add('hidden')
+      function clearState() {
+        localStorage.removeItem(STORAGE_KEY)
+      }
 
-      const doCount = results.filter(r => r.doIt).length
-      const dontCount = results.length - doCount
+      function updateProgress() {
+        const idx = Math.min(current, MAX_QUESTIONS - 1)
+        $('progressText').textContent = `第 ${idx + 1} / ${MAX_QUESTIONS} 个问题`
+        const dots = $('dots').children
+        for (let i = 0; i < dots.length; i++) {
+          dots[i].className = 'dot'
+          if (i < current) dots[i].classList.add('done')
+          if (i === idx) dots[i].classList.add('active')
+        }
+      }
 
-      $('summaryStats').innerHTML = `
-        <div class="stat-item">
-          <div class="stat-num green">${doCount}</div>
-          <div class="stat-label">做！</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-num red">${dontCount}</div>
-          <div class="stat-label">不做！</div>
-        </div>
-      `
+      function handleAsk() {
+        const question = questionInput.value.trim()
+        if (!question) { questionInput.focus(); return }
 
-      $('summaryList').innerHTML = results.map(r => `
-        <div class="history-item">${buildHistoryHtml(r)}</div>
-      `).join('')
+        askBtn.disabled = true
+        $('inputArea').classList.add('hidden')
 
-      $('summary').classList.add('show')
-    }
+        const thinkingEl = $('thinking')
+        thinkingEl.classList.add('show')
+        thinkingEl.querySelector('.text').textContent = randomPick(thinkTexts)
 
-    function handleRestart() {
-      current = 0
-      results = []
-      $('summary').classList.remove('show')
-      $('mainCard').classList.remove('hidden')
-      $('progress').classList.remove('hidden')
-      $('history').classList.remove('hidden')
-      $('history').innerHTML = ''
-      $('resultDisplay').classList.remove('show')
-      $('resultActions').classList.remove('show')
-      $('inputArea').classList.remove('hidden')
-      $('nextBtn').innerHTML = '下一个问题 <i class="ri-arrow-right-line"></i>'
-      $('nextBtn').onclick = handleNext
-      questionInput.value = ''
-      askBtn.disabled = false
-      updateProgress()
-      questionInput.focus()
-    }
+        const icons = ['ri-magic-fill', 'ri-compass-3-fill', 'ri-eye-fill', 'ri-flashlight-fill', 'ri-star-smile-fill']
+        let iconIdx = 0
+        const iconTimer = setInterval(() => {
+          iconIdx = (iconIdx + 1) % icons.length
+          thinkingEl.querySelector('.ball i').className = icons[iconIdx]
+        }, 300)
+
+        const delay = 1200 + Math.random() * 800
+
+        setTimeout(() => {
+          clearInterval(iconTimer)
+          thinkingEl.classList.remove('show')
+
+          const doIt = Math.random() > 0.5
+          const tip = doIt ? randomPick(doTips) : randomPick(dontTips)
+          const text = doIt ? '做！' : '不做！'
+
+          results.push({ question, doIt, text, tip })
+          current++
+          saveState()
+
+          vibrate(doIt ? [50, 30, 50] : [100])
+
+          const iconEl = $('resultIcon')
+          iconEl.className = 'result-icon ' + (doIt ? 'do-it' : 'dont-do')
+          $('resultIconI').className = doIt ? 'ri-check-line' : 'ri-close-line'
+
+          $('answerText').textContent = text
+          $('answerText').className = 'answer ' + (doIt ? 'do-it' : 'dont-do')
+
+          $('tipContent').textContent = tip
+          $('questionEcho').textContent = `"${question}"`
+          $('resultDisplay').classList.add('show')
+
+          if (current < MAX_QUESTIONS) {
+            $('resultActions').classList.add('show')
+            nextBtn.innerHTML = '下一个问题 <i class="ri-arrow-right-line"></i>'
+            nextBtn.onclick = handleNext
+          } else {
+            $('resultActions').classList.add('show')
+            nextBtn.innerHTML = '查看汇总 <i class="ri-file-list-3-line"></i>'
+            nextBtn.onclick = showSummary
+          }
+        }, delay)
+      }
+
+      function handleNext() {
+        $('resultDisplay').classList.remove('show')
+        $('resultActions').classList.remove('show')
+        addHistoryItem(results[results.length - 1])
+        questionInput.value = ''
+        askBtn.disabled = false
+        $('inputArea').classList.remove('hidden')
+        updateProgress()
+        questionInput.focus()
+      }
+
+      function buildHistoryHtml(item) {
+        const cls = item.doIt ? 'do-it' : 'dont-do'
+        const icon = item.doIt ? 'ri-check-line' : 'ri-close-line'
+        return `
+          <div class="h-icon ${cls}">
+            <i class="${icon}"></i>
+          </div>
+          <div class="h-body">
+            <span class="h-question">${escapeHtml(item.question)}</span>
+            <span class="h-tip">${escapeHtml(item.tip)}</span>
+          </div>
+          <span class="h-answer ${cls}">${escapeHtml(item.text)}</span>
+        `
+      }
+
+      function addHistoryItem(item) {
+        const historyEl = $('history')
+        if (!historyEl.querySelector('.history-title')) {
+          historyEl.innerHTML = '<p class="history-title"><i class="ri-time-line"></i> 之前的问题</p>'
+        }
+        const div = document.createElement('div')
+        div.className = 'history-item'
+        div.innerHTML = buildHistoryHtml(item)
+        historyEl.appendChild(div)
+      }
+
+      function getVerdict(doCount, dontCount) {
+        if (doCount === MAX_QUESTIONS) return randomPick(summaryVerdicts.allDo)
+        if (dontCount === MAX_QUESTIONS) return randomPick(summaryVerdicts.allDont)
+        if (doCount > dontCount) return randomPick(summaryVerdicts.moreDo)
+        if (dontCount > doCount) return randomPick(summaryVerdicts.moreDont)
+        return randomPick(summaryVerdicts.balanced)
+      }
+
+      function showSummary() {
+        $('mainCard').classList.add('hidden')
+        $('progress').classList.add('hidden')
+        $('history').classList.add('hidden')
+
+        const doCount = results.filter(r => r.doIt).length
+        const dontCount = results.length - doCount
+
+        $('summaryVerdict').innerHTML =
+          `<i class="ri-sparkling-2-fill"></i> ${escapeHtml(getVerdict(doCount, dontCount))}`
+
+        $('summaryStats').innerHTML = `
+          <div class="stat-item">
+            <div class="stat-num green">${doCount}</div>
+            <div class="stat-label">做！</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num red">${dontCount}</div>
+            <div class="stat-label">不做！</div>
+          </div>
+        `
+
+        $('summaryList').innerHTML = results.map(r => `
+          <div class="history-item">${buildHistoryHtml(r)}</div>
+        `).join('')
+
+        $('summary').classList.add('show')
+        clearState()
+      }
+
+      function handleRestart() {
+        current = 0
+        results = []
+        clearState()
+        $('summary').classList.remove('show')
+        $('mainCard').classList.remove('hidden')
+        $('progress').classList.remove('hidden')
+        $('history').classList.remove('hidden')
+        $('history').innerHTML = ''
+        $('resultDisplay').classList.remove('show')
+        $('resultActions').classList.remove('show')
+        $('inputArea').classList.remove('hidden')
+        nextBtn.innerHTML = '下一个问题 <i class="ri-arrow-right-line"></i>'
+        nextBtn.onclick = handleNext
+        questionInput.value = ''
+        askBtn.disabled = false
+        updateProgress()
+        questionInput.focus()
+      }
+
+      function handleShare() {
+        const doCount = results.filter(r => r.doIt).length
+        const dontCount = results.length - doCount
+        const lines = results.map((r, i) =>
+          `${i + 1}. ${r.question} → ${r.text}`
+        )
+        const text = [
+          '🔮 做还是不做？— 命运已裁决',
+          '',
+          ...lines,
+          '',
+          `✅ 做：${doCount}  ❌ 不做：${dontCount}`,
+          '',
+          getVerdict(doCount, dontCount),
+        ].join('\n')
+
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text).then(
+            () => showToast('已复制到剪贴板，快去分享吧！'),
+            () => showToast('复制失败，请手动复制')
+          )
+        } else {
+          showToast('当前浏览器不支持复制')
+        }
+      }
+
+      function restoreSession() {
+        if (!loadState()) return
+        for (let i = 0; i < results.length; i++) {
+          addHistoryItem(results[i])
+        }
+        updateProgress()
+        questionInput.focus()
+      }
+
+      // 统一事件绑定
+      askBtn.addEventListener('click', handleAsk)
+      nextBtn.addEventListener('click', handleNext)
+      restartBtn.addEventListener('click', handleRestart)
+      shareBtn.addEventListener('click', handleShare)
+
+      questionInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !askBtn.disabled) handleAsk()
+      })
+
+      // 移动端键盘弹起时滚动到输入框
+      questionInput.addEventListener('focus', () => {
+        setTimeout(() => {
+          questionInput.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }, 300)
+      })
+
+      restoreSession()
+    })()
   </script>
 </body>
 </html>
