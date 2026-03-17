@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>做还是不做？</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.min.css">
+  <style>
+    :root {
+      --bg: #fef6f0;
+      --card: #ffffff;
+      --pink: #ffb6c1;
+      --blue: #a0d2f0;
+      --green: #a8e6cf;
+      --green-deep: #4ecdc4;
+      --red: #ffaaa5;
+      --red-deep: #ff8a80;
+      --text: #5a4a42;
+      --text-light: #9b8e86;
+      --shadow: rgba(0, 0, 0, 0.06);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 60px;
+    }
+
+    .container { width: 100%; max-width: 420px; }
+
+    /* ---- Header ---- */
+    .header { text-align: center; margin-bottom: 32px; }
+
+    .header .logo {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, #ffe0e6, #ffd1dc);
+      border-radius: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      animation: float 3s ease-in-out infinite;
+      box-shadow: 0 6px 20px rgba(255, 182, 193, 0.3);
+    }
+
+    .header .logo i {
+      font-size: 36px;
+      color: #e8829a;
+    }
+
+    .header h1 { font-size: 28px; font-weight: 700; }
+    .header .subtitle { font-size: 14px; color: var(--text-light); margin-top: 6px; }
+
+    /* ---- Progress ---- */
+    .progress { text-align: center; margin-bottom: 20px; font-size: 14px; color: var(--text-light); }
+
+    .progress .dots { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+
+    .progress .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #e8ddd6; transition: all 0.3s;
+    }
+    .progress .dot.done { background: var(--green-deep); transform: scale(1.1); }
+    .progress .dot.active { background: var(--pink); transform: scale(1.2); animation: pulse 1s ease-in-out infinite; }
+
+    /* ---- Card ---- */
+    .card {
+      background: var(--card);
+      border-radius: 20px;
+      padding: 28px 24px;
+      box-shadow: 0 4px 20px var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    /* ---- Input ---- */
+    .input-area { display: flex; flex-direction: column; gap: 16px; }
+
+    .input-area input {
+      width: 100%; padding: 14px 18px;
+      border: 2px solid #f0e6de; border-radius: 14px;
+      font-size: 16px; color: var(--text); background: #faf5f1;
+      outline: none; transition: border-color 0.3s;
+    }
+    .input-area input:focus { border-color: var(--pink); }
+    .input-area input::placeholder { color: #cbbfb6; }
+
+    /* ---- Buttons ---- */
+    .btn {
+      padding: 14px 28px; border: none; border-radius: 14px;
+      font-size: 17px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn i { font-size: 20px; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--pink), #ffa0b4);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(255, 182, 193, 0.4);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 20px rgba(255, 182, 193, 0.5); transform: translateY(-1px); }
+    .btn-primary:active { transform: scale(0.96) translateY(0); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-restart {
+      background: linear-gradient(135deg, var(--blue), #8ac4e8);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(160, 210, 240, 0.4);
+    }
+    .btn-restart:hover { box-shadow: 0 6px 20px rgba(160, 210, 240, 0.5); transform: translateY(-1px); }
+
+    /* ---- Thinking ---- */
+    .thinking { display: none; text-align: center; padding: 24px 0; }
+    .thinking.show { display: block; }
+
+    .thinking .ball {
+      width: 80px; height: 80px;
+      background: linear-gradient(145deg, #6c5ce7, #a29bfe);
+      border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      animation: wobble 0.5s ease-in-out infinite alternate;
+      box-shadow: 0 8px 24px rgba(108, 92, 231, 0.3);
+    }
+    .thinking .ball i { font-size: 36px; color: #fff; }
+
+    .thinking .text {
+      font-size: 15px; color: var(--text-light);
+      margin-top: 14px;
+      animation: blink 0.6s ease-in-out infinite alternate;
+    }
+
+    /* ---- Result ---- */
+    .result-display { display: none; text-align: center; padding: 10px 0; }
+    .result-display.show { display: block; }
+
+    .result-icon {
+      width: 88px; height: 88px;
+      border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 12px;
+      animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+    }
+    .result-icon i { font-size: 44px; color: #fff; }
+    .result-icon.do-it {
+      background: linear-gradient(135deg, #4ecdc4, #44b09e);
+      box-shadow: 0 8px 24px rgba(78, 205, 196, 0.35);
+    }
+    .result-icon.dont-do {
+      background: linear-gradient(135deg, #ff8a80, #ff6b6b);
+      box-shadow: 0 8px 24px rgba(255, 138, 128, 0.35);
+    }
+
+    .result-display .answer {
+      font-size: 42px; font-weight: 800;
+      animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+      animation-delay: 0.1s; animation-fill-mode: both;
+    }
+    .result-display .answer.do-it { color: var(--green-deep); }
+    .result-display .answer.dont-do { color: var(--red-deep); }
+
+    .result-display .tip {
+      font-size: 14px;
+      color: var(--text-light);
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: #faf5f1;
+      border-radius: 10px;
+      display: inline-block;
+      animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+      animation-delay: 0.2s; animation-fill-mode: both;
+    }
+    .result-display .tip i { font-size: 14px; margin-right: 4px; color: #dab894; }
+
+    .result-display .question-text {
+      font-size: 13px; color: #c4b5aa;
+      margin-top: 14px; word-break: break-all;
+    }
+
+    /* ---- Result Actions ---- */
+    .result-actions { display: none; margin-top: 20px; text-align: center; }
+    .result-actions.show { display: flex; justify-content: center; }
+
+    /* ---- History ---- */
+    .history { margin-top: 8px; }
+    .history-title {
+      font-size: 13px; color: var(--text-light);
+      margin-bottom: 10px; text-align: center;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .history-title i { font-size: 15px; }
+
+    .history-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px;
+      background: var(--card); border-radius: 14px;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 10px var(--shadow);
+      animation: slideUp 0.3s ease-out;
+    }
+
+    .history-item .h-icon {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .history-item .h-icon i { font-size: 16px; color: #fff; }
+    .history-item .h-icon.do-it { background: linear-gradient(135deg, #4ecdc4, #44b09e); }
+    .history-item .h-icon.dont-do { background: linear-gradient(135deg, #ff8a80, #ff6b6b); }
+
+    .history-item .h-body { flex: 1; min-width: 0; }
+    .history-item .h-question {
+      font-size: 14px; color: var(--text); word-break: break-all;
+      display: block;
+    }
+    .history-item .h-tip {
+      font-size: 11px; color: #c4b5aa; margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      display: block;
+    }
+
+    .history-item .h-answer {
+      font-size: 13px; font-weight: 700; flex-shrink: 0;
+      padding: 4px 12px; border-radius: 20px;
+    }
+    .history-item .h-answer.do-it { background: #e8f8f5; color: var(--green-deep); }
+    .history-item .h-answer.dont-do { background: #fef0ef; color: var(--red-deep); }
+
+    /* ---- Summary ---- */
+    .summary { display: none; }
+    .summary.show { display: block; }
+
+    .summary .summary-header { text-align: center; margin-bottom: 20px; }
+
+    .summary .summary-icon {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, #ffd93d, #ff9a3c);
+      border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 12px;
+      box-shadow: 0 8px 24px rgba(255, 217, 61, 0.3);
+      animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+    }
+    .summary .summary-icon i { font-size: 36px; color: #fff; }
+
+    .summary .summary-header h2 { font-size: 22px; font-weight: 700; }
+    .summary .summary-header p { font-size: 14px; color: var(--text-light); margin-top: 4px; }
+
+    .summary .summary-stats {
+      display: flex; justify-content: center; gap: 24px;
+      margin: 16px 0 20px;
+    }
+    .summary .stat-item { text-align: center; }
+    .summary .stat-num { font-size: 28px; font-weight: 800; }
+    .summary .stat-num.green { color: var(--green-deep); }
+    .summary .stat-num.red { color: var(--red-deep); }
+    .summary .stat-label { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+    .summary .restart-wrap { text-align: center; margin-top: 24px; }
+
+    .hidden { display: none !important; }
+
+    /* ---- Animations ---- */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    @keyframes wobble {
+      0% { transform: rotate(-12deg) scale(1); }
+      100% { transform: rotate(12deg) scale(1.05); }
+    }
+    @keyframes blink {
+      0% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+    @keyframes bounceIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.1); }
+      70% { transform: scale(0.95); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { transform: translateY(12px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1.2); }
+      50% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <i class="ri-question-mark"></i>
+      </div>
+      <h1>做还是不做？</h1>
+      <p class="subtitle">把纠结交给命运吧～</p>
+    </div>
+
+    <div class="progress" id="progress">
+      <span id="progressText">第 1 / 5 个问题</span>
+      <div class="dots" id="dots">
+        <span class="dot active"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+    </div>
+
+    <div class="card" id="mainCard">
+      <div class="input-area" id="inputArea">
+        <input type="text" id="questionInput" placeholder="输入你纠结的事..." maxlength="50" autocomplete="off">
+        <button class="btn btn-primary" id="askBtn" onclick="handleAsk()">
+          <i class="ri-sparkling-2-fill"></i> 告诉我！
+        </button>
+      </div>
+
+      <div class="thinking" id="thinking">
+        <div class="ball">
+          <i class="ri-magic-fill"></i>
+        </div>
+        <p class="text">命运正在思考中...</p>
+      </div>
+
+      <div class="result-display" id="resultDisplay">
+        <div class="result-icon" id="resultIcon">
+          <i id="resultIconI"></i>
+        </div>
+        <div class="answer" id="answerText"></div>
+        <div class="tip" id="tipText">
+          <i class="ri-lightbulb-flash-line"></i>
+          <span id="tipContent"></span>
+        </div>
+        <p class="question-text" id="questionEcho"></p>
+      </div>
+
+      <div class="result-actions" id="resultActions">
+        <button class="btn btn-primary" id="nextBtn" onclick="handleNext()">
+          下一个问题 <i class="ri-arrow-right-line"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="summary" id="summary">
+      <div class="card">
+        <div class="summary-header">
+          <div class="summary-icon">
+            <i class="ri-trophy-fill"></i>
+          </div>
+          <h2>五个问题问完啦！</h2>
+          <p>命运已经替你做好了决定～</p>
+        </div>
+        <div class="summary-stats" id="summaryStats"></div>
+        <div id="summaryList"></div>
+        <div class="restart-wrap">
+          <button class="btn btn-restart" onclick="handleRestart()">
+            <i class="ri-refresh-line"></i> 再来一轮
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="history" id="history"></div>
+  </div>
+
+  <script>
+    const MAX_QUESTIONS = 5
+
+    const doTips = [
+      '犹豫就会败北，果断才能胜利！',
+      '人生苦短，先做了再说！',
+      '种一棵树最好的时间是十年前，其次是现在',
+      '反正你也拦不住自己，不如大胆去做',
+      '命运说了：冲就完事了！',
+      '做吧，未来的你会感谢现在的决定',
+      '有些事不做，才会后悔一辈子',
+      '别想了，宇宙都在推你往前走',
+      '心动不如行动，行动不如现在',
+      '这件事值得你 all in',
+      '你已经足够优秀，放手去做吧',
+      '机会稍纵即逝，现在就出发',
+      '纠结的时候，就选让你心跳加速的那个',
+      '勇敢的人先享受世界',
+      '做了可能后悔，不做一定后悔',
+    ]
+
+    const dontTips = [
+      '有时候什么都不做，也是一种智慧',
+      '今天的你需要一点咸鱼精神',
+      '躺平也是一种人生态度',
+      '省下这个精力，吃顿好的补补',
+      '命运觉得你应该先歇歇',
+      '别勉强自己啦，明天再说也不迟',
+      '此事不宜操之过急，再等等看',
+      '退一步海阔天空，不做也挺好',
+      '今日不宜折腾，适合发呆',
+      '你的直觉告诉你不要，那就别要',
+      '有些事情，顺其自然就好',
+      '不做这件事，你可以用时间去做更开心的事',
+      '摆烂也是需要勇气的，你做到了',
+      '宇宙建议：这件事先放一放',
+      '据说聪明的人都知道什么时候该放手',
+    ]
+
+    const thinkTexts = [
+      '命运正在思考中...',
+      '让我掐指算算...',
+      '水晶球正在旋转...',
+      '宇宙正在给出答案...',
+      '命运之轮转动中...',
+    ]
+
+    let current = 0
+    let results = []
+
+    const $ = (id) => document.getElementById(id)
+    const questionInput = $('questionInput')
+    const askBtn = $('askBtn')
+
+    questionInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !askBtn.disabled) handleAsk()
+    })
+
+    function randomPick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)]
+    }
+
+    function updateProgress() {
+      $('progressText').textContent = `第 ${current + 1} / ${MAX_QUESTIONS} 个问题`
+      const dots = $('dots').children
+      for (let i = 0; i < dots.length; i++) {
+        dots[i].className = 'dot'
+        if (i < current) dots[i].classList.add('done')
+        if (i === current) dots[i].classList.add('active')
+      }
+    }
+
+    function handleAsk() {
+      const question = questionInput.value.trim()
+      if (!question) { questionInput.focus(); return }
+
+      askBtn.disabled = true
+      $('inputArea').classList.add('hidden')
+
+      const thinkingEl = $('thinking')
+      thinkingEl.classList.add('show')
+      thinkingEl.querySelector('.text').textContent = randomPick(thinkTexts)
+
+      const icons = ['ri-magic-fill', 'ri-compass-3-fill', 'ri-eye-fill', 'ri-flashlight-fill', 'ri-star-smile-fill']
+      let iconIdx = 0
+      const iconTimer = setInterval(() => {
+        iconIdx = (iconIdx + 1) % icons.length
+        thinkingEl.querySelector('.ball i').className = icons[iconIdx]
+      }, 300)
+
+      const delay = 1200 + Math.random() * 800
+
+      setTimeout(() => {
+        clearInterval(iconTimer)
+        thinkingEl.classList.remove('show')
+
+        const doIt = Math.random() > 0.5
+        const tip = doIt ? randomPick(doTips) : randomPick(dontTips)
+        const text = doIt ? '做！' : '不做！'
+
+        results.push({ question, doIt, text, tip })
+
+        const iconEl = $('resultIcon')
+        iconEl.className = 'result-icon ' + (doIt ? 'do-it' : 'dont-do')
+        $('resultIconI').className = doIt ? 'ri-check-line' : 'ri-close-line'
+
+        $('answerText').textContent = text
+        $('answerText').className = 'answer ' + (doIt ? 'do-it' : 'dont-do')
+
+        $('tipContent').textContent = tip
+        $('questionEcho').textContent = `"${question}"`
+        $('resultDisplay').classList.add('show')
+
+        if (current < MAX_QUESTIONS - 1) {
+          $('resultActions').classList.add('show')
+          $('nextBtn').innerHTML = '下一个问题 <i class="ri-arrow-right-line"></i>'
+          $('nextBtn').onclick = handleNext
+        } else {
+          $('resultActions').classList.add('show')
+          $('nextBtn').innerHTML = '查看汇总 <i class="ri-file-list-3-line"></i>'
+          $('nextBtn').onclick = showSummary
+        }
+
+        current++
+      }, delay)
+    }
+
+    function handleNext() {
+      $('resultDisplay').classList.remove('show')
+      $('resultActions').classList.remove('show')
+      addHistoryItem(results[results.length - 1])
+      questionInput.value = ''
+      askBtn.disabled = false
+      $('inputArea').classList.remove('hidden')
+      updateProgress()
+      questionInput.focus()
+    }
+
+    function buildHistoryHtml(item) {
+      return `
+        <div class="h-icon ${item.doIt ? 'do-it' : 'dont-do'}">
+          <i class="${item.doIt ? 'ri-check-line' : 'ri-close-line'}"></i>
+        </div>
+        <div class="h-body">
+          <span class="h-question">${item.question}</span>
+          <span class="h-tip">${item.tip}</span>
+        </div>
+        <span class="h-answer ${item.doIt ? 'do-it' : 'dont-do'}">${item.text}</span>
+      `
+    }
+
+    function addHistoryItem(item) {
+      const historyEl = $('history')
+      if (!historyEl.querySelector('.history-title')) {
+        historyEl.innerHTML = '<p class="history-title"><i class="ri-time-line"></i> 之前的问题</p>'
+      }
+      const div = document.createElement('div')
+      div.className = 'history-item'
+      div.innerHTML = buildHistoryHtml(item)
+      historyEl.appendChild(div)
+    }
+
+    function showSummary() {
+      $('mainCard').classList.add('hidden')
+      $('progress').classList.add('hidden')
+      $('history').classList.add('hidden')
+
+      const doCount = results.filter(r => r.doIt).length
+      const dontCount = results.length - doCount
+
+      $('summaryStats').innerHTML = `
+        <div class="stat-item">
+          <div class="stat-num green">${doCount}</div>
+          <div class="stat-label">做！</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num red">${dontCount}</div>
+          <div class="stat-label">不做！</div>
+        </div>
+      `
+
+      $('summaryList').innerHTML = results.map(r => `
+        <div class="history-item">${buildHistoryHtml(r)}</div>
+      `).join('')
+
+      $('summary').classList.add('show')
+    }
+
+    function handleRestart() {
+      current = 0
+      results = []
+      $('summary').classList.remove('show')
+      $('mainCard').classList.remove('hidden')
+      $('progress').classList.remove('hidden')
+      $('history').classList.remove('hidden')
+      $('history').innerHTML = ''
+      $('resultDisplay').classList.remove('show')
+      $('resultActions').classList.remove('show')
+      $('inputArea').classList.remove('hidden')
+      $('nextBtn').innerHTML = '下一个问题 <i class="ri-arrow-right-line"></i>'
+      $('nextBtn').onclick = handleNext
+      questionInput.value = ''
+      askBtn.disabled = false
+      updateProgress()
+      questionInput.focus()
+    }
+  </script>
+</body>
+</html>
